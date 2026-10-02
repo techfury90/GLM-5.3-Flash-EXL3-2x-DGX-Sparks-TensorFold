@@ -242,10 +242,14 @@ foreground() {
   trap './stop.sh; exit 130' INT TERM
   ( exec 8>&-                                        # not holding start.sh's lock once start.sh has exited
     while sleep 30; do
-      running_here || exit 0
+      if ! running_here; then
+        scripts/persist-logs.sh rank0-exited || true # rank 0's traceback goes with its container otherwise (#31)
+        exit 0
+      fi
       worker true 2>/dev/null || continue           # the worker out of reach for a moment says nothing about rank 1
       running_worker && continue
       warn "rank 1 on $WORKER exited: stopping rank 0"
+      scripts/persist-logs.sh rank1-exited || true  # rank 1's log dies with its container at the next stop (#31)
       docker stop -t "${STOP_TIMEOUT:-30}" "$CONTAINER_NAME" >/dev/null 2>&1
       exit 1
     done ) &
@@ -272,6 +276,7 @@ gpu_gib() {
 }
 fail() {
   kill $LOGS_PID 2>/dev/null || true
+  scripts/persist-logs.sh fail || true                # the traceback that follows is why (issue #31)
   sleep 0.5
   printf '\n%s── rank 0 (here): last server log lines ──%s\n' "$D" "$R"
   docker logs --tail 25 "$CONTAINER_NAME" 2>&1 | sed 's/^/  │ /'

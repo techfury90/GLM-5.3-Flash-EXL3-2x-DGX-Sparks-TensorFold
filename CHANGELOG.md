@@ -12,6 +12,14 @@ Every change to this recipe, newest first. Each release names the image it serve
   now fail fast with both sides' numbers instead of leaving both GPUs spinning at 100% with frozen counters and only
   a restart recovering. `TF_GLM_MULTI_LOCKSTEP=0` turns it off.
 
+### Fixed
+- **A rank's container log is saved before anything removes the container** (`scripts/persist-logs.sh`, #31): a rank
+  that dies on its own takes its traceback with `docker rm -f`, which is where stop.sh's teardown (and a monitor's)
+  lost it -- the Oct 2 rank-0 self-exit left no exit code and no stack. stop.sh now saves both ranks' logs under
+  `STATE_DIR/container-logs/` before it removes anything, and start.sh does the same when it detects a dead rank or
+  fails to become ready. The whole log is kept, not a tail: the engine logs sparsely, and a traceback needs the
+  startup lines above it.
+
 ### Changed
 - **Earlier turns' reasoning stays in the prompt** (patch `0054-glm-keep-thinking`), as in zai-org's current template.
   The checkpoint's template dropped it at each new user message, so agents prefilled the previous turn's tool loop

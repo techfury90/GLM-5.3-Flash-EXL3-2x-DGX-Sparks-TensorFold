@@ -24,6 +24,10 @@ if (( here == 0 && there == 0 )); then
 fi
 where="on both Sparks"; (( there )) || where="here"; (( here )) || where="on the worker"
 
+# The rm below is what destroys a container's log (issue #31): save both ranks' first, whatever state they are in --
+# a rank that died on its own is exactly the one whose traceback is worth keeping
+scripts/persist-logs.sh stopping || warn "could not save the containers' logs; removing them anyway"
+
 if [[ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)" == true ]]; then
   api_host="$HOST"; [[ "$HOST" == 0.0.0.0 || "$HOST" == "::" ]] && api_host=127.0.0.1
   [[ "$api_host" == *:* ]] && api_host="[$api_host]"
