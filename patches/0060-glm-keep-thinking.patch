@@ -1,4 +1,9 @@
+# PR #23: earlier turns keep their reasoning in the prompt (clear_thinking=False unless the request sets it);
+# TF_GLM_CLEAR_THINKING=1 restores the old rendering. Contributed by @kky42
+# (MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold#23), applied unchanged. Apache-2.0.
+
 diff --git tensorfold/families/glm5_next/cuda/app.py tensorfold/families/glm5_next/cuda/app.py
+index 161f218..5a540cf 100644
 --- tensorfold/families/glm5_next/cuda/app.py
 +++ tensorfold/families/glm5_next/cuda/app.py
 @@ -2,6 +2,7 @@
@@ -9,7 +14,7 @@ diff --git tensorfold/families/glm5_next/cuda/app.py tensorfold/families/glm5_ne
  from pathlib import Path
  from typing import Any, Callable
  
-@@ -17,14 +18,17 @@
+@@ -17,14 +18,17 @@ class ThinkingOffTemplate:
      (``prompts.agent_history``), with the reasoning of tool-calling steps the client dropped put back (``kept``,
      ``kept_reasoning.KeptReasoning``; None: off)."""
  
@@ -28,7 +33,7 @@ diff --git tensorfold/families/glm5_next/cuda/app.py tensorfold/families/glm5_ne
          text = self.inner.render(agent_history(messages), tools=tools, enable_thinking=enable_thinking, extra=extra,
                                   allow_images=allow_images)
          return text if enable_thinking else thinking_off(text)
-@@ -56,7 +60,10 @@
+@@ -60,7 +64,10 @@ class GlmApp(App):
          super().__init__(engine, model_dir, served, **kwargs)
          if self.vision is not None:
              media_template(self.template, Path(model_dir))

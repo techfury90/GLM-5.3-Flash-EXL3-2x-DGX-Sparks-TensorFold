@@ -1,6 +1,11 @@
+# Kept prompt cap: past TF_GLM_CACHE_ENTRIES a conversation's superseded (shorter) kept states go first, then the
+# least recently used. By @Alexbob0 (PR #32), rebased on 0054. Same replies.
+
+diff --git tensorfold/families/glm5_next/cuda/multi.py tensorfold/families/glm5_next/cuda/multi.py
+index 1b2efbc..840d182 100644
 --- tensorfold/families/glm5_next/cuda/multi.py
 +++ tensorfold/families/glm5_next/cuda/multi.py
-@@ -127,6 +127,24 @@
+@@ -132,6 +132,24 @@ def fill_share(value: str | None = None) -> float:
      return share
  
  
@@ -25,12 +30,13 @@
  def multi_code(code: list[int], dflash: bool, dflash_policy: list[int]) -> list[int]:
      """A request's policy code under --parallel: serial stays serial; auto becomes TF_GLM_DFLASH_POLICY; an MTP
      policy its DFlash2 twin; without a draft model, serial."""
-@@ -755,12 +773,13 @@
+@@ -854,13 +872,14 @@ class MultiDecoder:
          snap.kid = self.next_kid
          self.next_kid += 1
          snap.extent = lane.extent
 +        snap.shared = n in lane.shared
-         for c in [c for c in self.kept if c.ids == snap.ids]:
+         # the same ids: the same prompt, unless pictures are in it (rank 1 has no keys; rank 0 resumes by key)
+         for c in [c for c in self.kept if c.ids == snap.ids and not (c.images or snap.images)]:
              self._drop(c)
          lane.extent.kept.append(snap)
          self.kept.append(snap)
