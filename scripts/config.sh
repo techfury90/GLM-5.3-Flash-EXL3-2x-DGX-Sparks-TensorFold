@@ -151,6 +151,11 @@ export TF_GLM_WIDE_GRAPHS="$_w" TF_GLM_COPY_REPLY_MATCH="$_w"
 # kept prompts there, so interactive sessions miss the prompt cache and re-read whole histories (issues #12, #13).
 # Off by default until that move keeps them. Exact either way.
 export TF_GLM_MULTI_LONE="${TF_GLM_MULTI_LONE:-0}"
+# Rank lockstep (patch 0057, issue #29): rank 0 stamps [seq, op count] on every message to rank 1 and waits, bounded
+# by TF_GLM_LOCKSTEP_WAIT_S (600 s by default: a first start compiles kernels), for rank 1's ack of each before it
+# sends the next; the ack cross-checks the ranks' host-issued collective counts, so two ranks that drift out of step
+# fail fast with both sides' numbers instead of leaving both GPUs spinning. Exact. 0: off.
+export TF_GLM_MULTI_LOCKSTEP="${TF_GLM_MULTI_LOCKSTEP:-1}"
 # Kept prompt states (TensorFold's TF_GLM_CACHE_ENTRIES, 8 by default): the oldest is dropped past this count, however
 # much of the pool is free. A drafted agent request keeps 1 to 3 (its own plus shared-prefix states), so 8 let three
 # or four alternating conversations push each other out (issue #17). Each entry reserves its fixed state (~45 MiB) at

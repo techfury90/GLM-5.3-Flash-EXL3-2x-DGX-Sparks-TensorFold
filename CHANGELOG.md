@@ -5,6 +5,13 @@ Every change to this recipe, newest first. Each release names the image it serve
 
 ## Unreleased
 
+### Added
+- **Rank lockstep** (patch `0057-glm-rank-lockstep`, #29): rank 0's messages to rank 1 carry `[seq, op count]`, and
+  rank 0 waits, bounded by `TF_GLM_LOCKSTEP_WAIT_S` (600 s default), for rank 1's TCPStore ack of each message before
+  sending the next; the ack cross-checks both ranks' host-issued collective counts. Two ranks that drift out of step
+  now fail fast with both sides' numbers instead of leaving both GPUs spinning at 100% with frozen counters and only
+  a restart recovering. `TF_GLM_MULTI_LOCKSTEP=0` turns it off.
+
 ### Changed
 - **Earlier turns' reasoning stays in the prompt** (patch `0054-glm-keep-thinking`), as in zai-org's current template.
   The checkpoint's template dropped it at each new user message, so agents prefilled the previous turn's tool loop
