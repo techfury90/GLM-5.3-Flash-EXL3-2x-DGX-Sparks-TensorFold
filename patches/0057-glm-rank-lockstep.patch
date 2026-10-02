@@ -14,7 +14,7 @@
          self.broken: Exception | None = None
          self.requeue: list[Stream] = []                  # rank 0: streams given back to the scheduler's queue
          self.eos = tuple(self.w.cfg.eos)
-@@ -466,15 +473,83 @@
+@@ -466,15 +473,88 @@
      def _flush(self) -> None:
          """Rank 0: this iteration's ops to rank 1, one message (after the doorbell when rank 1 idles)."""
  
@@ -63,8 +63,13 @@
 +        except Exception as exc:              # the wait's timeout: rank 1 has not acked (anything else is real)
 +            if "timeout" not in str(exc).lower():
 +                raise
++            # rank 1's host is wedged in an apply (a tap commit's sync) or gone: name what this rank knows, since
++            # the stuck collective itself cannot be named from the host once the GPUs are wedged (issue #29)
++            mine = getattr(self.g.comm, "ordinals", None)
++            last = "" if self.ord_offset is None else f", the last agreed delta was {self.ord_offset}"
 +            self.broken = RuntimeError(f"rank 1 has not acknowledged message {seq} within "
-+                                       f"{self.tune.lockstep_wait:g} s")
++                                       f"{self.tune.lockstep_wait:g} s "
++                                       f"(this rank has issued {mine} collectives{last})")
 +            raise self.broken from exc
 +        got = [int(x) for x in store.get("tf_glm_ack").decode().split(":")]
 +        if got[0] != seq:                     # a later seq cannot be: this rank sends the next only after this
@@ -98,7 +103,7 @@
      def _send(self, values: list[int]) -> None:
          """Rank 0, TF_GLM_MULTI_ASYNC: ``GlmEngine._share``'s two all-gathers (the length, then the values) without
          reading anything back: the values go through a pinned staging buffer (reused once its last copy has left),
-@@ -1403,6 +1478,34 @@
+@@ -1403,6 +1483,34 @@
          return out
  
      # -- rank 1 --------------------------------------------------------------------------------------------------------------
@@ -133,7 +138,7 @@
      @torch.no_grad()
      def follow(self, once: bool = False) -> None:
          """Rank 1: apply rank 0's messages forever (``once``: one message)."""
-@@ -1412,7 +1515,8 @@
+@@ -1412,7 +1520,8 @@
                  self.g._await_bell()
                  self.idle = False
              _watch(self.watchdog, "rank 1 message")       # busy: rank 0's next message is due within a round
